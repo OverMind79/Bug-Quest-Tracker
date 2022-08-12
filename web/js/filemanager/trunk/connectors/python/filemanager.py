@@ -27,7 +27,7 @@ try:
     from PIL import Image
 except ImportError:
     raise EnvironmentError('Must have the PIL (Python Imaging Library).')
-    
+
 
 path_exists = os.path.exists
 normalize_path = os.path.normpath
@@ -65,9 +65,9 @@ class Filemanager:
 
     def isvalidrequest(self, **kwargs):
         """Returns an error if the given path is not within the specified root path."""
-                
+            
         assert split_path(kwargs['path'])[0]==self.fileroot
-        assert not kwargs['req'] is None
+        assert kwargs['req'] is not None
         
 
 
@@ -92,31 +92,36 @@ class Filemanager:
                     'Size' : ''
                 }
             }
-            
-        imagetypes = set('gif','jpg','jpeg','png')
-        
-    
+
         if not path_exists(path):
             thefile['Error'] = 'File does not exist.'
             return (encode_json(thefile), None, 'application/json')
-        
-        
+
+
         if split_path(path)[-1]=='/':
             thefile['File Type'] = 'Directory'
         else:
             thefile['File Type'] = split_ext(path)
-            
+
+            imagetypes = set('gif','jpg','jpeg','png')
+
+
             if ext in imagetypes:
                 img = Image(path).size()
                 thefile['Properties']['Width'] = img[0]
                 thefile['Properties']['Height'] = img[1]
-                
+
             else:
-                previewPath = 'images/fileicons/' + ext.upper + '.png'
-                thefile['Preview'] = previewPath if path_exists('../../' + previewPath) else 'images/fileicons/default.png'
-        
-        thefile['Properties']['Date Created'] = os.path.getctime(path) 
-        thefile['Properties']['Date Modified'] = os.path.getmtime(path) 
+                previewPath = f'images/fileicons/{ext.upper}.png'
+                thefile['Preview'] = (
+                    previewPath
+                    if path_exists(f'../../{previewPath}')
+                    else 'images/fileicons/default.png'
+                )
+
+
+        thefile['Properties']['Date Created'] = os.path.getctime(path)
+        thefile['Properties']['Date Modified'] = os.path.getmtime(path)
         thefile['Properties']['Size'] = os.path.getsize(path)
 
         req.content_type('application/json')
@@ -124,7 +129,7 @@ class Filemanager:
 
 
     def getfolder(self, path=None, getsizes=true, req=None):
-    
+
         if not self.isvalidrequest(path,req):
             return (self.patherror, None, 'application/json')
 
@@ -140,25 +145,25 @@ class Filemanager:
     
     
     def rename(self, old=None, new=None, req=None):
-                
+            
         if not self.isvalidrequest(path=new,req=req):
             return (self.patherror, None, 'application/json')
-        
+
         if old[-1]=='/':
             old=old[:-1]
-            
+
         oldname = split_path(path)[-1]
         path = string(old)
         path = split_path(path)[0]
-        
-        if not path[-1]=='/':
+
+        if path[-1] != '/':
             path += '/'
-        
+
         newname = encode_urlpath(new)
         newpath = path + newname
-        
+
         os.path.rename(old, newpath)
-        
+
         result = {
             'Old Path' : old,
             'Old Name' : oldname,
@@ -166,7 +171,7 @@ class Filemanager:
             'New Name' : newname,
             'Error' : 'There was an error renaming the file.' # todo: get the actual error
         }
-        
+
         req.content_type('application/json')
         req.write(encode_json(result))
     
@@ -187,19 +192,19 @@ class Filemanager:
         req.write(encode_json(result))
     
     
-    def add(self, path=None, req=None):     
+    def add(self, path=None, req=None): 
 
         if not self.isvalidrequest(path,req):
             return (self.patherror, None, 'application/json')
-        
-    
+
+
         try:
             thefile = util.FieldStorage(req)['file'] #TODO get the correct param name for the field holding the file            
             newName = thefile.filename
-            
+
             with open(newName, 'rb') as f:
                             f.write(thefile.value) 
-            
+
         except:
 
             result = {
@@ -207,16 +212,16 @@ class Filemanager:
                 'Name' : newName,
                 'Error' : file_currenterror
             }
-            
+
         else:
             result = {
                 'Path' : path,
                 'Name' : newName,
                 'Error' : 'No file was uploaded.'
             }
-    
+
         req.content_type('text/html')
-        req.write(('<textarea>' + encode_json(result) + '</textarea>'))
+        req.write(f'<textarea>{encode_json(result)}</textarea>')
         
     
     def addfolder(self, path, name):        
